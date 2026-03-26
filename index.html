@@ -109,6 +109,39 @@
 <script>
     if (typeof lucide !== 'undefined') { lucide.createIcons(); }
 
+    // ==========================================
+    // 1. FONCTION DE TRACKING GA4 (postMessage)
+    // ==========================================
+    function trackTool(actionName) {
+        // Le nom de l'outil a été mis à jour selon ta demande
+        const nom_du_tool = "offres-elec-ENGIE";
+        window.parent.postMessage({
+            'event': 'tool_interaction',
+            'tool_name': nom_du_tool, 
+            'tool_action': actionName
+        }, '*');
+    }
+
+    // ==========================================
+    // 2. INTERSECTION OBSERVER (Visibilité outil)
+    // ==========================================
+    document.addEventListener("DOMContentLoaded", () => {
+        const toolElement = document.getElementById('papernest-engie-tool');
+        const visibilityObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    trackTool('tool_visible'); // Déclenche l'événement visible
+                    visibilityObserver.disconnect(); // On se déconnecte pour ne pas spammer
+                }
+            });
+        }, { threshold: 0.35 });
+
+        if (toolElement) visibilityObserver.observe(toolElement);
+    });
+
+    // ==========================================
+    // DONNÉES ET LOGIQUE DE L'OUTIL
+    // ==========================================
     const engieOffers = [
         { 
             id: 'elec-adapt-1an', 
@@ -194,7 +227,15 @@
                 </div>
                 <i data-lucide="check" class="w-4 h-4 hide-element" style="color: ${theme.text}"></i>
             `;
-            item.onclick = (e) => { e.stopPropagation(); selectOffer(offer, item); closeDropdown(); };
+            
+            // FUSION ONCLICK : Tracking du choix de l'offre
+            item.onclick = (e) => { 
+                trackTool('select_offer_' + offer.id); 
+                e.stopPropagation(); 
+                selectOffer(offer, item); 
+                closeDropdown(); 
+            };
+            
             dropdownMenu.appendChild(item);
         });
         lucide.createIcons();
@@ -245,9 +286,31 @@
         lucide.createIcons();
     }
 
-    selectBtn.onclick = (e) => { e.stopPropagation(); toggleDropdown(); };
-    document.onclick = () => closeDropdown();
-    ctaBtn.onclick = () => { if (selectedOffer) window.open(selectedOffer.url, '_blank'); };
+    // FUSION ONCLICK : Tracking de l'ouverture/fermeture via le bouton select
+    selectBtn.onclick = (e) => { 
+        trackTool(isOpen ? 'dropdown_close' : 'dropdown_open');
+        e.stopPropagation(); 
+        toggleDropdown(); 
+    };
+    
+    // FUSION ONCLICK : Tracking si l'utilisateur clique en dehors pour fermer (abandon du choix)
+    document.onclick = () => {
+        if(isOpen) {
+            trackTool('dropdown_close_outside');
+            closeDropdown();
+        }
+    };
+    
+    // FUSION ONCLICK : Tracking du clic sortant (CTA) et redirection sur le même onglet après 200ms
+    ctaBtn.onclick = () => { 
+        if (selectedOffer) {
+            trackTool('click_cta_' + selectedOffer.id);
+            
+            setTimeout(() => {
+                window.top.location.href = selectedOffer.url;
+            }, 200);
+        }
+    };
 
     window.onload = () => { renderDropdown(); sendResize(); };
 </script>
